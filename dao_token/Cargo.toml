@@ -1,0 +1,19 @@
+[package]
+name = "dao_token"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+soroban-auth = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+soroban-auth = { workspace = true, features = ["testutils"] }
+
+ed25519-dalek = { version = "1.0.1" }
+rand = { version = "0.7.3" }
