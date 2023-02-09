@@ -1,4 +1,3 @@
-
 use soroban_auth::{Identifier, Signature, verify};
 use soroban_sdk::{Env, contractimpl, contracttype, Vec, unwrap::UnwrapOptimized, contracterror, panic_with_error, symbol};
 
@@ -9,7 +8,6 @@ pub  struct PowerAtArgs{
     block: u32,
     ident: Identifier
 }
-
 #[derive(Clone)]
 #[contracttype]
 pub struct DelegateAmountArgs{
@@ -236,17 +234,45 @@ fn set_delgate_amount_from_to(env: &Env, from: Identifier, to: Identifier, amoun
 
 #[cfg(test)]
 mod dao_test{
-    use soroban_sdk::{Vec, Env, vec, unwrap::UnwrapOptimized};
+    extern crate std;
+    use std::println;
+
+    use soroban_sdk::{Env, vec, unwrap::UnwrapOptimized, Bytes};
+    use soroban_sdk::testutils::Accounts;
+    use crate::contract::TokenClient;
+    use crate::dao::{DaoExtensionClient, DaoExtension};
 
 
     #[test]
-    fn test(){
-        let env: Env = Default::default();
+    fn test() {
+        // let env: Env = Default::default();
+        // let token_contract_id = env.register_contract(None, crate::contract::Token);
+        // env.register_contract(&token_contract_id,DaoExtension);
+        // let user_1 = env.accounts().generate();
+        // let user_2 = env.accounts().generate();
 
-        let vec: Vec<u32> = vec![&env, 1,2,3,4,5,7,8,9];
 
-        let res = vec.binary_search(6);
+        // let token_client = TokenClient::new(&env, token_contract_id.clone());
+        // let dao_ext_client = DaoExtensionClient::new(&env, token_contract_id.clone());
+        // token_client.initialize(&user_1.clone().into(), &7, &Bytes::from_array(&env, b"DAO TOKEN"), &Bytes::from_array(&env, b"DTOKEN") );
 
-        assert_eq!(5,res.unwrap_optimized())
+
+        // token_client
+        //     .with_source_account(&user_1)
+        //     .mint(&soroban_auth::Signature::Invoker, &0, &user_2.clone().into(), &1000000000);
+
+        // assert_eq!(1000000000, token_client.balance(&user_2.clone().into()));
+        // // assert_eq!(0, dao_ext_client.power(&user_2.clone().into()));
+
+        // let power_res = dao_ext_client.power(&user_2.clone().into());
+
+
+        // println!("{:?}", power_res);
+
+        // // let res = dao_ext_client
+        // //     .with_source_account(&user_2)
+        // //     .delegate(&soroban_auth::Signature::Invoker, &0, &user_2.clone().into(), &10);
+
+
     }
 }

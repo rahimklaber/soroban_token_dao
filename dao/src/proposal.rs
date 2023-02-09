@@ -3,7 +3,7 @@ use soroban_sdk::{
     contracttype, unwrap::UnwrapOptimized, BytesN, Env, RawVal, Symbol, Vec, panic_with_error,
 };
 
-use crate::{data_keys::DataKey, settings::get_min_prop_duration, errors::ContractError, VotesCount};
+use crate::{data_keys::DataKey, settings::get_min_prop_duration, errors::ContractError};
 
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -197,7 +197,7 @@ pub fn check_min_prop_power(env: &Env, power: i128){
     } 
 }
 
-pub fn votes_counts(env: Env, prop_id: u32) -> VotesCount{
+pub fn votes_counts(env: &Env, prop_id: u32) -> VotesCount{
     let for_votes = get_for_votes(&env, prop_id);
     let against_votes = get_against_votes(&env, prop_id);
     let abstain_votes = get_abstain_votes(&env, prop_id);

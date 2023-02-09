@@ -6,13 +6,14 @@ mod proposal;
 mod settings;
 mod token;
 mod nonce;
+mod test;
 
 use data_keys::{check_init, set_init};
 use nonce::{verify_and_consume_nonce, read_nonce};
 use proposal::{add_proposal, Proposal, check_min_duration, get_prop_start_ledger, set_voted, add_for_votes, check_voted, add_against_votes, add_abstain_votes, get_for_votes, get_against_votes, get_abstain_votes, set_prop_start_ledger, get_min_proposal_power, get_proposal, set_min_proposal_power, check_min_prop_power, VotesCount, votes_counts};
 use settings::{set_min_prop_duration, set_quorum, get_min_prop_duration, get_quorum};
 use soroban_auth::{Signature, verify, Identifier};
-use soroban_sdk::{contractimpl, BytesN, Env, symbol, contracttype, Symbol, assert_with_error};
+use soroban_sdk::{contractimpl, BytesN, Env, symbol, contracttype, Symbol, assert_with_error, vec};
 use token::{get_dao_token_client, store_dao_token};
 
 use crate::errors::ContractError;

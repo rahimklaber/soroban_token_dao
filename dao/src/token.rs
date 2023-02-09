@@ -2,7 +2,7 @@ use soroban_sdk::{BytesN, Env};
 
 use crate::data_keys::DataKey;
 
-mod tokenclient {
+pub mod tokenclient {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/dao_token.wasm");
 }
 
