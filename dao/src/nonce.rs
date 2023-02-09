@@ -1,5 +1,5 @@
-use soroban_auth::{Signature, Identifier};
-use soroban_sdk::{Env, panic_with_error, unwrap::UnwrapOptimized};
+use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
 use crate::{data_keys::DataKey, errors::ContractError};
 // from token contract

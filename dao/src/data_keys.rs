@@ -1,7 +1,7 @@
 use soroban_auth::Identifier;
 use soroban_sdk::{contracttype, panic_with_error, Env};
 
-use crate::{errors::ContractError, proposal::{ProposalVoted}};
+use crate::{errors::ContractError, proposal::ProposalVoted};
 
 #[derive(Clone)]
 #[contracttype]
@@ -24,14 +24,13 @@ pub enum DataKey {
     Voted(ProposalVoted),
     // abstain votes for this proposal
     AbstainV(u32),
-    // fo votes 
+    // fo votes
     ForVotes(u32),
     // against votes
     AgainstV(u32),
     Nonce(Identifier),
     // min power to propose
-    MinPropP
-
+    MinPropP,
 }
 
 pub fn check_init(env: &Env) {

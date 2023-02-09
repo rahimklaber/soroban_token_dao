@@ -11,5 +11,5 @@ pub enum ContractError {
     AlreadyVoted = 4,
     InvalidProposalId = 5,
     NotEnoughPower = 6,
-    TooEarlyToExecute = 7
+    TooEarlyToExecute = 7,
 }
