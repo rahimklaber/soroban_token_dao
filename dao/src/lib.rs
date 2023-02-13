@@ -12,18 +12,21 @@ use data_keys::{check_init, set_init};
 use nonce::{read_nonce, verify_and_consume_nonce};
 use proposal::{
     add_abstain_votes, add_against_votes, add_for_votes, add_proposal, check_min_duration,
-    check_min_prop_power, check_voted, get_abstain_votes, get_against_votes, get_for_votes,
-    get_min_proposal_power, get_prop_start_ledger, get_proposal, set_min_proposal_power,
-    set_prop_start_ledger, set_voted, votes_counts, Proposal, VotesCount,
+    check_min_prop_power, check_voted, get_against_votes, get_for_votes, get_min_proposal_power,
+    get_prop_start_ledger, get_proposal, set_min_proposal_power, set_voted, votes_counts, Proposal,
+    VotesCount,
 };
 use settings::{get_min_prop_duration, get_quorum, set_min_prop_duration, set_quorum};
 use soroban_auth::{verify, Identifier, Signature};
 use soroban_sdk::{
-    assert_with_error, contractimpl, contracttype, symbol, vec, BytesN, Env, Symbol,
+    assert_with_error, contractimpl, contracttype, panic_with_error, symbol, BytesN, Env, Symbol,
 };
 use token::{get_dao_token_client, store_dao_token};
 
-use crate::errors::ContractError;
+use crate::{
+    errors::ContractError,
+    proposal::{executed, set_executed},
+};
 
 #[contracttype]
 #[derive(Clone)]
@@ -90,21 +93,57 @@ impl DaoTrait for DaoContract {
     fn c_prop(env: Env, signature: Signature, nonce: i128, proposal: Proposal) -> u32 {
         let identifier = signature.identifier(&env);
 
+        // verify
+        // verify nonce
+
         check_min_duration(&env, &proposal);
         check_min_prop_power(&env, get_dao_token_client(&env).power(&identifier));
-
+        //todo, store the token supply at this point
         add_proposal(&env, proposal)
     }
 
     //try to execute prop
     fn execute(env: Env, prop_id: u32) {
+        if executed(&env, prop_id) {
+            panic_with_error!(env, ContractError::AllreadyExecuted)
+        }
+
         let proposal = get_proposal(&env, prop_id);
 
         assert_with_error!(
             &env,
-            proposal.end_time >= env.ledger().timestamp(),
+            proposal.end_time <= env.ledger().timestamp(),
             ContractError::TooEarlyToExecute
         );
+
+        let for_votes = get_for_votes(&env, prop_id);
+
+        assert_with_error!(
+            &env,
+            for_votes > get_against_votes(&env, prop_id),
+            ContractError::ForVotesLessThanAgainstVotes
+        );
+
+        // let token_client = get_dao_token_client(&env);
+        //
+        // assert_with_error!(
+        //     &env,
+        //     for_votes + get_abstain_votes(&env, prop_id) >  get_quorum(&env) * token_client.
+        // )
+
+        for result in proposal.instr {
+            match result {
+                Ok(instr) => {
+                    if env.current_contract() == instr.c_id {
+                        //todo add stuff for settings
+                    } else {
+                        env.invoke_contract(&instr.c_id, &instr.fun_name, instr.args)
+                    }
+                }
+                Err(_) => panic!(),
+            }
+        }
+        set_executed(&env, prop_id);
     }
 
     fn proposal(env: Env, prop_id: u32) -> ProposalExtra {

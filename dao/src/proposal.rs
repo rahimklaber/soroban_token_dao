@@ -1,6 +1,7 @@
 use soroban_auth::Identifier;
 use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, BytesN, Env, RawVal, Symbol, Vec,
+    assert_with_error, contracttype, panic_with_error, unwrap::UnwrapOptimized, BytesN, Env,
+    RawVal, Symbol, Vec,
 };
 
 use crate::{data_keys::DataKey, errors::ContractError, settings::get_min_prop_duration};
@@ -187,4 +188,15 @@ pub fn votes_counts(env: &Env, prop_id: u32) -> VotesCount {
         v_against: against_votes,
         v_abstain: abstain_votes,
     }
+}
+
+pub fn set_executed(env: &Env, prop_id: u32) {
+    env.storage().set(DataKey::Executed(prop_id), true)
+}
+
+pub fn executed(env: &Env, prop_id: u32) -> bool {
+    env.storage()
+        .get(DataKey::Executed(prop_id))
+        .unwrap_or(Ok(false))
+        .unwrap_optimized()
 }

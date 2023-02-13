@@ -31,10 +31,12 @@ pub enum DataKey {
     Nonce(Identifier),
     // min power to propose
     MinPropP,
+    //whether a proposal has been executedd
+    Executed(u32),
 }
 
 pub fn check_init(env: &Env) {
-    if !is_init(&env) {
+    if is_init(&env) {
         panic_with_error!(&env, ContractError::NotInit)
     }
 }
