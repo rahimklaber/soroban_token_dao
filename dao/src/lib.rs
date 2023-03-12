@@ -2,14 +2,12 @@
 
 mod data_keys;
 mod errors;
-mod nonce;
 mod proposal;
 mod settings;
 mod test;
 mod token;
 
 use data_keys::{check_init, set_init};
-use nonce::{read_nonce, verify_and_consume_nonce};
 use proposal::{
     add_abstain_votes, add_against_votes, add_for_votes, add_proposal, check_min_duration,
     check_min_prop_power, check_voted, get_against_votes, get_for_votes, get_min_proposal_power,
@@ -17,9 +15,9 @@ use proposal::{
     VotesCount,
 };
 use settings::{get_min_prop_duration, get_quorum, set_min_prop_duration, set_quorum};
-use soroban_auth::{verify, Identifier, Signature};
 use soroban_sdk::{
-    assert_with_error, contractimpl, contracttype, panic_with_error, symbol, BytesN, Env, Symbol,
+    assert_with_error, contractimpl, contracttype, panic_with_error, symbol, Address, BytesN, Env,
+    Symbol,
 };
 use token::{get_dao_token_client, store_dao_token};
 
@@ -43,7 +41,7 @@ pub trait DaoTrait {
         min_prop_power: i128,
     );
     //create proposal and return its id
-    fn c_prop(env: Env, from: Signature, nonce: i128, proposal: Proposal) -> u32;
+    fn c_prop(env: Env, from: Address, proposal: Proposal) -> u32;
 
     //try to execute prop
     fn execute(env: Env, prop_id: u32);
@@ -51,9 +49,9 @@ pub trait DaoTrait {
     fn proposal(env: Env, prop_id: u32) -> ProposalExtra;
 
     //allow a member to vote on a proposal]
-    fn vote_for(env: Env, from: Signature, nonce: i128, prop_id: u32);
-    fn v_against(env: Env, from: Signature, nonce: i128, prop_id: u32);
-    fn v_abstain(env: Env, from: Signature, nonce: i128, prop_id: u32);
+    fn vote_for(env: Env, from: Address, prop_id: u32);
+    fn v_against(env: Env, from: Address, prop_id: u32);
+    fn v_abstain(env: Env, from: Address, prop_id: u32);
 
     fn votes(env: Env, prop_id: u32) -> VotesCount;
 
@@ -64,7 +62,6 @@ pub trait DaoTrait {
     //minimum percentage to for proposal to pass.
     // so for (votes + abstain / total_power) * 100 must be > quorum
     fn quorum(env: Env) -> u32;
-    fn nonce(env: Env, of: Identifier) -> i128;
 }
 
 pub struct DaoContract;
@@ -90,14 +87,12 @@ impl DaoTrait for DaoContract {
         set_quorum(&env, min_quorum_percent);
     }
 
-    fn c_prop(env: Env, signature: Signature, nonce: i128, proposal: Proposal) -> u32 {
-        let identifier = signature.identifier(&env);
-
+    fn c_prop(env: Env, from: Address, proposal: Proposal) -> u32 {
         // verify
         // verify nonce
 
         check_min_duration(&env, &proposal);
-        check_min_prop_power(&env, get_dao_token_client(&env).power(&identifier));
+        check_min_prop_power(&env, get_dao_token_client(&env).power(&from));
         //todo, store the token supply at this point
         add_proposal(&env, proposal)
     }
@@ -134,7 +129,7 @@ impl DaoTrait for DaoContract {
         for result in proposal.instr {
             match result {
                 Ok(instr) => {
-                    if env.current_contract() == instr.c_id {
+                    if env.current_contract_id() == instr.c_id {
                         //todo add stuff for settings
                     } else {
                         env.invoke_contract(&instr.c_id, &instr.fun_name, instr.args)
@@ -154,27 +149,27 @@ impl DaoTrait for DaoContract {
     }
 
     //allow a member to vote on a proposal]
-    fn vote_for(env: Env, from: Signature, nonce: i128, prop_id: u32) {
+    fn vote_for(env: Env, from: Address, prop_id: u32) {
         add_for_votes(
             &env,
             prop_id,
-            vote_helper(&env, from, nonce, prop_id, symbol!("vote_for")),
+            vote_helper(&env, from, prop_id, symbol!("vote_for")),
         );
     }
 
-    fn v_against(env: Env, from: Signature, nonce: i128, prop_id: u32) {
+    fn v_against(env: Env, from: Address, prop_id: u32) {
         add_against_votes(
             &env,
             prop_id,
-            vote_helper(&env, from, nonce, prop_id, symbol!("v_against")),
+            vote_helper(&env, from, prop_id, symbol!("v_against")),
         )
     }
 
-    fn v_abstain(env: Env, from: Signature, nonce: i128, prop_id: u32) {
+    fn v_abstain(env: Env, from: Address, prop_id: u32) {
         add_abstain_votes(
             &env,
             prop_id,
-            vote_helper(&env, from, nonce, prop_id, symbol!("v_abstain")),
+            vote_helper(&env, from, prop_id, symbol!("v_abstain")),
         )
     }
 
@@ -190,10 +185,6 @@ impl DaoTrait for DaoContract {
         get_quorum(&env)
     }
 
-    fn nonce(env: Env, of: Identifier) -> i128 {
-        read_nonce(&env, &of)
-    }
-
     fn min_prop_p(env: Env) -> i128 {
         get_min_proposal_power(&env)
     }
@@ -201,20 +192,18 @@ impl DaoTrait for DaoContract {
 
 // function to avoid code duplication in the vote functions
 
-fn vote_helper(env: &Env, from: Signature, nonce: i128, prop_id: u32, symbol: Symbol) -> i128 {
+fn vote_helper(env: &Env, from: Address, prop_id: u32, symbol: Symbol) -> i128 {
     let client = get_dao_token_client(&env);
     let start_ledger = get_prop_start_ledger(&env, prop_id);
 
-    let from_id = from.identifier(&env);
     // check if person allready voted
-    check_voted(&env, prop_id, from_id.clone());
+    check_voted(&env, prop_id, from.clone());
 
-    let power_at_start = client.power_at(&from_id, &start_ledger);
+    let power_at_start = client.power_at(&from, &start_ledger);
 
-    verify(&env, &from, symbol, (&from_id, &nonce, &prop_id));
-    verify_and_consume_nonce(&env, &from, nonce);
+    from.require_auth();
 
-    set_voted(&env, prop_id, from_id);
+    set_voted(&env, prop_id, from.clone());
 
     power_at_start
 }

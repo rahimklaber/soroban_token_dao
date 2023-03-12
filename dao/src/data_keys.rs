@@ -1,5 +1,4 @@
-use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, panic_with_error, Env};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env};
 
 use crate::{errors::ContractError, proposal::ProposalVoted};
 
@@ -28,7 +27,7 @@ pub enum DataKey {
     ForVotes(u32),
     // against votes
     AgainstV(u32),
-    Nonce(Identifier),
+    Nonce(Address),
     // min power to propose
     MinPropP,
     //whether a proposal has been executedd
@@ -42,12 +41,12 @@ pub fn check_init(env: &Env) {
 }
 
 pub fn set_init(env: &Env) {
-    env.storage().set(DataKey::Init, true)
+    env.storage().set(&DataKey::Init, &true)
 }
 
 pub fn is_init(env: &Env) -> bool {
     env.storage()
-        .get(DataKey::Init)
+        .get(&DataKey::Init)
         .unwrap_or(Ok(false))
         .unwrap()
 }

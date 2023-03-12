@@ -9,13 +9,13 @@ pub mod tokenclient {
 pub fn get_dao_token_client(env: &Env) -> tokenclient::Client {
     let token_id: BytesN<32> = env
         .storage()
-        .get(DataKey::DaoToken)
+        .get(&DataKey::DaoToken)
         .unwrap() // we don't handle error here. If this doesn't work, then we are screwed anyways.
         .unwrap();
 
-    tokenclient::Client::new(&env, token_id)
+    tokenclient::Client::new(&env, &token_id)
 }
 
 pub fn store_dao_token(env: &Env, token_id: BytesN<32>) {
-    env.storage().set(DataKey::DaoToken, token_id)
+    env.storage().set(&DataKey::DaoToken, &token_id)
 }

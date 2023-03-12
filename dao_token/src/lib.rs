@@ -4,11 +4,11 @@ mod admin;
 mod allowance;
 mod balance;
 mod contract;
-mod dao;
 mod event;
 mod metadata;
 mod storage_types;
+
+mod dao;
 mod test;
-pub mod testutils;
 
 pub use crate::contract::TokenClient;

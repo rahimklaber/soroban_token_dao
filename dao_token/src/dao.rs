@@ -1,37 +1,35 @@
-use soroban_auth::{verify, Identifier, Signature};
+use core::ops::Add;
+
 use soroban_sdk::{
     contracterror, contractimpl, contracttype, panic_with_error, symbol, unwrap::UnwrapOptimized,
-    Env, Vec,
+    Address, Env, Vec,
 };
 
-use crate::{
-    balance::{receive_balance, spend_balance},
-    contract::verify_and_consume_nonce,
-};
+use crate::balance::{receive_balance, spend_balance};
 #[derive(Clone)]
 #[contracttype]
 pub struct PowerAtArgs {
     block: u32,
-    ident: Identifier,
+    ident: Address,
 }
 #[derive(Clone)]
 #[contracttype]
 pub struct DelegateAmountArgs {
-    from: Identifier,
-    to: Identifier,
+    from: Address,
+    to: Address,
 }
 
 #[contracttype]
 pub enum DaoDataKey {
     // blocks where their voting power changed
     // Vec<u64>
-    PChanges(Identifier),
+    PChanges(Address),
     // power at block
     //u128
     PowerAt(PowerAtArgs),
     //u128
     //current power
-    Power(Identifier),
+    Power(Address),
     // amount delegated from, to to
     // i128
     DelegateTo(DelegateAmountArgs),
@@ -52,75 +50,58 @@ pub enum DaoError {
 pub trait DaoExtensionTrait {
     // Get voting power of a Identifier
     // We explicitly use Identifier instead of Address to allow for threshold signature schemes like FROST
-    fn power(env: Env, of: Identifier) -> i128;
-    fn power_at(env: Env, of: Identifier, at_block: u32) -> i128;
+    fn power(env: Env, of: Address) -> i128;
+    fn power_at(env: Env, of: Address, at_block: u32) -> i128;
     // delegate power `from` to `to`
-    fn delegate(env: Env, from: Signature, nonce: i128, to: Identifier, amount: i128);
+    fn delegate(env: Env, from: Address, to: Address, amount: i128);
     // remove delegation
     // amount is the amount we want to remove
     // from is the person who delegated
-    fn r_delegate(env: Env, from: Signature, nonce: i128, to: Identifier, amount: i128);
+    fn r_delegate(env: Env, from: Address, to: Address, amount: i128);
     //get amount that `from` has delegated to `to`
-    fn get_d_a(env: Env, from: Identifier, to: Identifier) -> i128;
+    fn get_d_a(env: Env, from: Address, to: Address) -> i128;
 }
 
 struct DaoExtension;
 
 #[contractimpl]
 impl DaoExtensionTrait for DaoExtension {
-    fn power(env: Env, of: Identifier) -> i128 {
+    fn power(env: Env, of: Address) -> i128 {
         return get_power(&env, of);
     }
 
-    fn power_at(env: Env, of: Identifier, at_block: u32) -> i128 {
+    fn power_at(env: Env, of: Address, at_block: u32) -> i128 {
         get_power_at_or_before(&env, of, at_block)
     }
 
-    fn delegate(env: Env, from: Signature, nonce: i128, to: Identifier, amount: i128) {
-        let from_id = from.identifier(&env);
+    fn delegate(env: Env, from: Address, to: Address, amount: i128) {
+        from.require_auth();
 
-        verify_and_consume_nonce(&env, &from, nonce);
-        verify(
-            &env,
-            &from,
-            symbol!("delegate"),
-            (&from_id, nonce, &to, &amount),
-        );
-
-        add_delgation(&env, from_id, to, amount)
+        add_delgation(&env, from, to, amount)
     }
 
-    fn r_delegate(env: Env, from: Signature, nonce: i128, to: Identifier, amount: i128) {
-        let from_id = from.identifier(&env);
-
-        verify_and_consume_nonce(&env, &from, nonce);
-        verify(
-            &env,
-            &from,
-            symbol!("r_delegate"),
-            (&from_id, nonce, &to, &amount),
-        );
-
-        remove_delegation(&env, from_id, to, amount)
+    fn r_delegate(env: Env, from: Address, to: Address, amount: i128) {
+        from.require_auth();
+        remove_delegation(&env, from, to, amount)
     }
 
-    fn get_d_a(env: Env, from: Identifier, to: Identifier) -> i128 {
+    fn get_d_a(env: Env, from: Address, to: Address) -> i128 {
         get_delagate_amount_from_to(&env, from, to)
     }
 }
 
-fn get_power(env: &Env, of: Identifier) -> i128 {
+fn get_power(env: &Env, of: Address) -> i128 {
     env.storage()
-        .get(DaoDataKey::Power(of))
+        .get(&DaoDataKey::Power(of))
         .unwrap_or(Ok(0))
         .unwrap_optimized()
 }
 
-fn set_power(env: &Env, of: Identifier, power: i128) {
-    env.storage().set(DaoDataKey::Power(of), power)
+fn set_power(env: &Env, of: Address, power: i128) {
+    env.storage().set(&DaoDataKey::Power(of), &power)
 }
 
-fn add_power(env: &Env, of: Identifier, amount: i128) {
+fn add_power(env: &Env, of: Address, amount: i128) {
     if amount < 0 {
         panic_with_error!(env, DaoError::CannotAddNegativePower);
     }
@@ -131,7 +112,7 @@ fn add_power(env: &Env, of: Identifier, amount: i128) {
     add_power_change(env, of.clone(), new_power);
 }
 
-fn remove_power(env: &Env, of: Identifier, amount: i128) {
+fn remove_power(env: &Env, of: Address, amount: i128) {
     if amount < 0 {
         panic_with_error!(env, DaoError::CannotRemoveNegativePower);
     }
@@ -143,7 +124,7 @@ fn remove_power(env: &Env, of: Identifier, amount: i128) {
 }
 
 // store that the power changed at this block
-fn add_power_change(env: &Env, of: Identifier, power: i128) {
+fn add_power_change(env: &Env, of: Address, power: i128) {
     let mut current_changes = get_power_changes(env, of.clone());
 
     // Todo: is this actually necesary?
@@ -156,26 +137,26 @@ fn add_power_change(env: &Env, of: Identifier, power: i128) {
     }
 
     env.storage()
-        .set(DaoDataKey::PChanges(of.clone()), current_changes);
+        .set(&DaoDataKey::PChanges(of.clone()), &current_changes);
 
     env.storage().set(
-        DaoDataKey::PowerAt(PowerAtArgs {
+        &DaoDataKey::PowerAt(PowerAtArgs {
             block: env.ledger().sequence(),
             ident: of.clone(),
         }),
-        power,
+        &power,
     )
 }
 
 // get the blocks at which this identifier's power changed
-fn get_power_changes(env: &Env, of: Identifier) -> Vec<u32> {
+fn get_power_changes(env: &Env, of: Address) -> Vec<u32> {
     env.storage()
-        .get(DaoDataKey::PChanges(of))
+        .get(&DaoDataKey::PChanges(of))
         .unwrap_or(Ok(Vec::new(env)))
         .unwrap_optimized()
 }
 
-fn get_power_at_or_before(env: &Env, of: Identifier, at_or_before: u32) -> i128 {
+fn get_power_at_or_before(env: &Env, of: Address, at_or_before: u32) -> i128 {
     let changes = get_power_changes(env, of.clone());
     if changes.len() == 0 {
         return 0;
@@ -196,7 +177,7 @@ fn get_power_at_or_before(env: &Env, of: Identifier, at_or_before: u32) -> i128 
     };
 
     env.storage()
-        .get(DaoDataKey::PowerAt(PowerAtArgs {
+        .get(&DaoDataKey::PowerAt(PowerAtArgs {
             block: latest_seq_at_or_before,
             ident: of.clone(),
         }))
@@ -204,7 +185,7 @@ fn get_power_at_or_before(env: &Env, of: Identifier, at_or_before: u32) -> i128 
         .unwrap_optimized()
 }
 
-fn add_delgation(env: &Env, from: Identifier, to: Identifier, amount: i128) {
+fn add_delgation(env: &Env, from: Address, to: Address, amount: i128) {
     let current_delegate_amount = get_delagate_amount_from_to(env, from.clone(), to.clone());
 
     // remove_power(env, from.clone(), amount);
@@ -221,7 +202,7 @@ fn add_delgation(env: &Env, from: Identifier, to: Identifier, amount: i128) {
 
 // `from` -> the person that delegated originally and wants to remove their delegation.
 // `amount` -> amount that we want to remove. Should be positive and not negative.
-fn remove_delegation(env: &Env, from: Identifier, to: Identifier, amount: i128) {
+fn remove_delegation(env: &Env, from: Address, to: Address, amount: i128) {
     let current_delegate_amount = get_delagate_amount_from_to(env, from.clone(), to.clone());
 
     // if we want to remove more than is delegated
@@ -241,17 +222,17 @@ fn remove_delegation(env: &Env, from: Identifier, to: Identifier, amount: i128) 
     receive_balance(env, from.clone(), amount);
 }
 
-fn get_delagate_amount_from_to(env: &Env, from: Identifier, to: Identifier) -> i128 {
+fn get_delagate_amount_from_to(env: &Env, from: Address, to: Address) -> i128 {
     env.storage()
-        .get(DaoDataKey::DelegateTo(DelegateAmountArgs { from, to }))
+        .get(&DaoDataKey::DelegateTo(DelegateAmountArgs { from, to }))
         .unwrap_or(Ok(0))
         .unwrap_optimized()
 }
 
-fn set_delgate_amount_from_to(env: &Env, from: Identifier, to: Identifier, amount: i128) {
+fn set_delgate_amount_from_to(env: &Env, from: Address, to: Address, amount: i128) {
     env.storage().set(
-        DaoDataKey::DelegateTo(DelegateAmountArgs { from, to }),
-        amount,
+        &DaoDataKey::DelegateTo(DelegateAmountArgs { from, to }),
+        &amount,
     )
 }
 
@@ -262,7 +243,6 @@ mod dao_test {
 
     use crate::contract::TokenClient;
     use crate::dao::{DaoExtension, DaoExtensionClient};
-    use soroban_sdk::testutils::Accounts;
     use soroban_sdk::{unwrap::UnwrapOptimized, vec, Bytes, Env};
 
     #[test]

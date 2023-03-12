@@ -8,10 +8,8 @@ use crate::token::tokenclient;
 use crate::{token, DaoContract, DaoContractClient};
 use ed25519_dalek::Keypair;
 use rand::thread_rng;
-use soroban_auth::Identifier;
-use soroban_sdk::testutils::Accounts;
 use soroban_sdk::testutils::{Ledger, LedgerInfo};
-use soroban_sdk::{symbol, vec, Bytes, Env, IntoVal};
+use soroban_sdk::{symbol, vec, Bytes, Env, IntoVal, Vec, __bytes_lit_bytes, bytes};
 
 fn generate_keypair() -> Keypair {
     Keypair::generate(&mut thread_rng())
@@ -26,7 +24,7 @@ fn test() {
     let user_1 = env.accounts().generate();
     let user_2 = env.accounts().generate();
 
-    let token_client = tokenclient::Client::new(&env, token_contract_id.clone());
+    let token_client = tokenclient::Client::new(&env, &token_contract_id.clone());
 
     token_client.initialize(
         &user_1.clone().into(),
@@ -154,4 +152,6 @@ fn test() {
     dao_client.execute(&prop_id);
 
     assert_eq!(190, token_client.balance(&user_2.clone().into()));
+
+    let bytes = Bytes::from_array(&env, b"hi");
 }

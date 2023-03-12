@@ -1,7 +1,6 @@
-use soroban_auth::Identifier;
 use soroban_sdk::{
-    assert_with_error, contracttype, panic_with_error, unwrap::UnwrapOptimized, BytesN, Env,
-    RawVal, Symbol, Vec,
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, BytesN, Env, RawVal, Symbol,
+    Vec,
 };
 
 use crate::{data_keys::DataKey, errors::ContractError, settings::get_min_prop_duration};
@@ -9,7 +8,7 @@ use crate::{data_keys::DataKey, errors::ContractError, settings::get_min_prop_du
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct ProposalVoted {
-    pub voter: Identifier,
+    pub voter: Address,
     pub prop_id: u32,
 }
 
@@ -41,7 +40,7 @@ pub struct VotesCount {
 pub fn add_proposal(env: &Env, proposal: Proposal) -> u32 {
     let prop_id = get_and_inc_prop_id(env);
 
-    env.storage().set(DataKey::Proposal(prop_id), proposal);
+    env.storage().set(&DataKey::Proposal(prop_id), &proposal);
     set_prop_start_ledger(env, prop_id, env.ledger().sequence());
 
     prop_id
@@ -49,7 +48,7 @@ pub fn add_proposal(env: &Env, proposal: Proposal) -> u32 {
 
 pub fn get_proposal(env: &Env, prop_id: u32) -> Proposal {
     env.storage()
-        .get(DataKey::Proposal(prop_id))
+        .get(&DataKey::Proposal(prop_id))
         .unwrap_or_else(|| panic_with_error!(env, ContractError::InvalidProposalId))
         .unwrap_optimized()
 }
@@ -57,11 +56,11 @@ pub fn get_proposal(env: &Env, prop_id: u32) -> Proposal {
 fn get_and_inc_prop_id(env: &Env) -> u32 {
     let prev = env
         .storage()
-        .get(DataKey::ProposalId)
+        .get(&DataKey::ProposalId)
         .unwrap_or(Ok(0u32))
         .unwrap_optimized();
 
-    env.storage().set(DataKey::ProposalId, prev + 1);
+    env.storage().set(&DataKey::ProposalId, &(prev + 1));
     prev
 }
 
@@ -72,44 +71,45 @@ pub fn check_min_duration(env: &Env, proposal: &Proposal) {
     }
 }
 
-pub fn set_voted(env: &Env, prop_id: u32, voter: Identifier) {
+pub fn set_voted(env: &Env, prop_id: u32, voter: Address) {
     env.storage()
-        .set(DataKey::Voted(ProposalVoted { voter, prop_id }), true)
+        .set(&DataKey::Voted(ProposalVoted { voter, prop_id }), &true)
 }
 
-pub fn get_voted(env: &Env, prop_id: u32, voter: Identifier) -> bool {
+pub fn get_voted(env: &Env, prop_id: u32, voter: Address) -> bool {
     env.storage()
-        .get(DataKey::Voted(ProposalVoted { voter, prop_id }))
+        .get(&DataKey::Voted(ProposalVoted { voter, prop_id }))
         .unwrap_or(Ok(false))
         .unwrap_optimized()
 }
 
-pub fn check_voted(env: &Env, prop_id: u32, voter: Identifier) {
+pub fn check_voted(env: &Env, prop_id: u32, voter: Address) {
     if get_voted(env, prop_id, voter) {
         panic_with_error!(env, ContractError::AlreadyVoted)
     }
 }
 
 pub fn set_prop_start_ledger(env: &Env, prop_id: u32, start_ledger: u32) {
-    env.storage().set(DataKey::PropStart(prop_id), start_ledger)
+    env.storage()
+        .set(&DataKey::PropStart(prop_id), &start_ledger)
 }
 
 pub fn get_prop_start_ledger(env: &Env, prop_id: u32) -> u32 {
     env.storage()
-        .get(DataKey::PropStart(prop_id))
+        .get(&DataKey::PropStart(prop_id))
         .unwrap_optimized()
         .unwrap_optimized()
 }
 
 pub fn get_for_votes(env: &Env, prop_id: u32) -> i128 {
     env.storage()
-        .get(DataKey::ForVotes(prop_id))
+        .get(&DataKey::ForVotes(prop_id))
         .unwrap_or(Ok(0))
         .unwrap_optimized()
 }
 
 fn set_for_votes(env: &Env, prop_id: u32, amount: i128) {
-    env.storage().set(DataKey::ForVotes(prop_id), amount)
+    env.storage().set(&DataKey::ForVotes(prop_id), &amount)
 }
 
 pub fn add_for_votes(env: &Env, prop_id: u32, amount: i128) {
@@ -123,13 +123,13 @@ pub fn add_for_votes(env: &Env, prop_id: u32, amount: i128) {
 
 pub fn get_against_votes(env: &Env, prop_id: u32) -> i128 {
     env.storage()
-        .get(DataKey::AgainstV(prop_id))
+        .get(&DataKey::AgainstV(prop_id))
         .unwrap_or(Ok(0))
         .unwrap_optimized()
 }
 
 fn set_against_votes(env: &Env, prop_id: u32, amount: i128) {
-    env.storage().set(DataKey::AgainstV(prop_id), amount)
+    env.storage().set(&DataKey::AgainstV(prop_id), &amount)
 }
 
 pub fn add_against_votes(env: &Env, prop_id: u32, amount: i128) {
@@ -143,13 +143,13 @@ pub fn add_against_votes(env: &Env, prop_id: u32, amount: i128) {
 
 pub fn get_abstain_votes(env: &Env, prop_id: u32) -> i128 {
     env.storage()
-        .get(DataKey::AbstainV(prop_id))
+        .get(&DataKey::AbstainV(prop_id))
         .unwrap_or(Ok(0))
         .unwrap_optimized()
 }
 
 fn set_abstain_votes(env: &Env, prop_id: u32, amount: i128) {
-    env.storage().set(DataKey::AbstainV(prop_id), amount)
+    env.storage().set(&DataKey::AbstainV(prop_id), &amount)
 }
 
 pub fn add_abstain_votes(env: &Env, prop_id: u32, amount: i128) {
@@ -162,12 +162,12 @@ pub fn add_abstain_votes(env: &Env, prop_id: u32, amount: i128) {
 }
 
 pub fn set_min_proposal_power(env: &Env, min_power: i128) {
-    env.storage().set(DataKey::MinPropP, min_power)
+    env.storage().set(&DataKey::MinPropP, &min_power)
 }
 
 pub fn get_min_proposal_power(env: &Env) -> i128 {
     env.storage()
-        .get(DataKey::MinPropP)
+        .get(&DataKey::MinPropP)
         .unwrap_optimized()
         .unwrap_optimized()
 }
@@ -191,12 +191,12 @@ pub fn votes_counts(env: &Env, prop_id: u32) -> VotesCount {
 }
 
 pub fn set_executed(env: &Env, prop_id: u32) {
-    env.storage().set(DataKey::Executed(prop_id), true)
+    env.storage().set(&DataKey::Executed(prop_id), &true)
 }
 
 pub fn executed(env: &Env, prop_id: u32) -> bool {
     env.storage()
-        .get(DataKey::Executed(prop_id))
+        .get(&DataKey::Executed(prop_id))
         .unwrap_or(Ok(false))
         .unwrap_optimized()
 }
