@@ -1,0 +1,8 @@
+{
+
+  "type": "module",
+  "dependencies": {
+    "soroban-client": "^0.4.0",
+    "tslib": "^2.5.0"
+  }
+}

@@ -107,7 +107,7 @@ impl DaoTrait for DaoContract {
 
         assert_with_error!(
             &env,
-            proposal.end_time <= env.ledger().timestamp(),
+            proposal.end_time >= env.ledger().timestamp(),
             ContractError::TooEarlyToExecute
         );
 
@@ -198,6 +198,13 @@ fn vote_helper(env: &Env, from: Address, prop_id: u32, symbol: Symbol) -> i128 {
 
     // check if person allready voted
     check_voted(&env, prop_id, from.clone());
+    
+    let prop = get_proposal(&env, prop_id);
+    assert_with_error!(
+        &env,
+        prop.end_time <= env.ledger().timestamp(),
+        ContractError::PropDeadlinePassed
+    );
 
     let power_at_start = client.power_at(&from, &start_ledger);
 

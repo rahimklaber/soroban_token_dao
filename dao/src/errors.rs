@@ -14,4 +14,5 @@ pub enum ContractError {
     TooEarlyToExecute = 7,
     AllreadyExecuted = 8,
     ForVotesLessThanAgainstVotes = 9,
+    PropDeadlinePassed = 10
 }
