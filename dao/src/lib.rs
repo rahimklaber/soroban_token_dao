@@ -107,7 +107,7 @@ impl DaoTrait for DaoContract {
 
         assert_with_error!(
             &env,
-            proposal.end_time >= env.ledger().timestamp(),
+            proposal.end_time <= env.ledger().timestamp(),
             ContractError::TooEarlyToExecute
         );
 
